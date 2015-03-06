@@ -19,14 +19,15 @@ class Ipthresh
 	//configurable vars 
 	public $logpath='/logs'; //absolute path
 	public $refuse_noua=false; //if no user-agent
-	public $thresh_post_duration=25; //seconds
-	public $thresh_post_threshold=10; //post times in thresh_post_duration
+	public $thresh_post_duration=15; //seconds
+	public $thresh_post_threshold=6; //post times in thresh_post_duration
 	public $thresh_get_duration=25; //seconds
 	public $thresh_get_threshold=24; //post times in thresh_post_duration
 	public $default_bantime=1800; //sec
 	public $default_bantime_lite=65; //sec
 	public $timeincrement=65; // sec
 	public $default_mode=1;//  1=check only   2=403       3=display & die
+	public $debugmode=false;// display debug information
 	public $whiteip=array( //for AUTO only
 		'127.0.0.1',
 		'::1',
@@ -79,7 +80,7 @@ class Ipthresh
 			if(!empty($postdata)) $postdata='post:'.$postdata;
 			$cookie2=isset($_SERVER['HTTP_COOKIE'])?'cookie:'.$_SERVER['HTTP_COOKIE']:'';
 			$d=date('Y-m-d G:i:s');
-			if((time()%259200)>=(filemtime($this->logpath.'/ipthresh.log')%259200))
+			if(file_exists($this->logpath.'/ipthresh.log') && (time()%259200)>=(filemtime($this->logpath.'/ipthresh.log')%259200))
 				file_put_contents($this->logpath.'/ipthresh.log',$d.' - '.$r.' - '.$_SERVER['HTTP_USER_AGENT'].' - '.$_SERVER['REQUEST_METHOD'].' - '.$_SERVER['REQUEST_URI'].' - '.$ref.' - '.$for.' - '.$postdata.' - '.$cookie2.' - '.$txt."\r\n",FILE_APPEND|LOCK_EX);
 			else
 				file_put_contents($this->logpath.'/ipthresh.log',$d.' - '.$r.' - '.$_SERVER['HTTP_USER_AGENT'].' - '.$_SERVER['REQUEST_METHOD'].' - '.$_SERVER['REQUEST_URI'].' - '.$ref.' - '.$for.' - '.$postdata.' - '.$cookie2.' - '.$txt."\r\n",LOCK_EX);
@@ -94,6 +95,7 @@ class Ipthresh
 	{
 		$this->prechecked=true;
 		
+		if($this->debugmode && $this->debug()) return -2;
 		//check banned ip list
 		$banlist=$this->apc->getData('Ipthresh');
 		if($banlist!=null)
@@ -155,7 +157,7 @@ class Ipthresh
 				if(isset($banlist[$postdata]))
 				{
 					if($banlist[$postdata]>$time)
-						return $this->dealwithit($this->timeincrement,1,'ip');
+						return $this->dealwithit($this->timeincrement,1,'post');
 					else
 					{
 						unset($banlist[$postdata]);
@@ -356,11 +358,30 @@ class Ipthresh
 		}
 		
 		$remoteaddr=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
-		if(!$this->threshcheck('IPThresh_bulkpost',$remoteaddr,$this->thresh_get_duration,$this->thresh_get_threshold))
+		if(!$this->threshcheck('IPThresh_bulkget',$remoteaddr,$this->thresh_get_duration,$this->thresh_get_threshold))
 		{
 			return $this->dealwithit($this->default_bantime_lite,1,'cc attack');
 		}
 		return 0;
+	}
+	public function reset()
+	{
+		$this->apc->delData('Ipthresh');
+		$this->apc->delData('Ipthresh_banpost');
+		$this->apc->delData('IPThresh_noua');
+		$this->apc->delData('IPThresh_bulkpost');
+		$this->apc->delData('IPThresh_bulkget');
+	}
+	public function debug()
+	{
+		echo "Now: ".time()."<br />\r\n";
+		echo "Posthash: ".$this->getposthash()."<br />\r\n";
+		echo "Ban IP: ".var_export($this->apc->getData('Ipthresh'),true)."<br />\r\n";
+		echo "Ban Posthash: ".var_export($this->apc->getData('Ipthresh_banpost'),true)."<br />\r\n";
+		echo "IPThresh_noua: ".var_export($this->apc->getData('IPThresh_noua'),true)."<br />\r\n";
+		echo "IPThresh_bulkpost: ".var_export($this->apc->getData('IPThresh_bulkpost'),true)."<br />\r\n";
+		echo "IPThresh_bulkget: ".var_export($this->apc->getData('IPThresh_bulkget'),true)."<br />\r\n";
+		return true;
 	}
 	function getposthash()
 	{
