@@ -17,7 +17,7 @@
 class Ipthresh
 {
 	//configurable vars 
-	public $logpath='/logs'; //absolute path
+	public $logpath='/logs'; //absolute path, leave empty if nolog
 	public $refuse_noua=false; //if no user-agent
 	public $thresh_post_duration=15; //seconds
 	public $thresh_post_threshold=6; //post times in thresh_post_duration
@@ -71,7 +71,7 @@ class Ipthresh
 			$this->apc->setData('Ipthresh',$banlist);
 		}
 		//log
-		if($log)
+		if($log && !empty($this->logpath))
 		{
 			$r=$_SERVER['REMOTE_ADDR'];
 			$for=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?'for:'.$_SERVER['HTTP_X_FORWARDED_FOR']:'';
